@@ -1,5 +1,4 @@
 import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
 
 export interface ParsedData {
   data: any[];
@@ -41,22 +40,22 @@ export const parseJSON = (file: File): Promise<ParsedData> => {
         const jsonData = JSON.parse(text);
         
         // Handle different JSON structures
-        let parsedRows: any[];
+        let data: any[];
         if (Array.isArray(jsonData)) {
-          parsedRows = jsonData;
+          data = jsonData;
         } else if (jsonData.data && Array.isArray(jsonData.data)) {
-          parsedRows = jsonData.data;
+          data = jsonData.data;
         } else if (typeof jsonData === 'object') {
           // Convert single object to array
-          parsedRows = [jsonData];
+          data = [jsonData];
         } else {
           throw new Error('Invalid JSON structure');
         }
         
-        const headers = parsedRows.length > 0 ? Object.keys(parsedRows[0]) : [];
+        const headers = data.length > 0 ? Object.keys(data[0]) : [];
         
         resolve({
-          data: parsedRows,
+          data,
           headers,
           errors: [],
         });
@@ -81,73 +80,6 @@ export const parseJSON = (file: File): Promise<ParsedData> => {
   });
 };
 
-export const parseExcel = (file: File): Promise<ParsedData> => {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      try {
-        const arrayBuffer = e.target?.result as ArrayBuffer;
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        
-        // Get the first worksheet
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        
-        // Convert to JSON
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        
-        if (jsonData.length === 0) {
-          resolve({
-            data: [],
-            headers: [],
-            errors: ['Empty Excel file'],
-          });
-          return;
-        }
-        
-        // Extract headers from first row
-        const headers = (jsonData[0] as any[]).map(header => 
-          header ? String(header).trim() : ''
-        );
-        
-        // Convert rows to objects
-        const excelRows = jsonData.slice(1)
-          .filter(row => Array.isArray(row) && row.some(cell => cell !== null && cell !== undefined && cell !== ''))
-          .map((row: any[]) => {
-            const obj: any = {};
-            headers.forEach((header, index) => {
-              obj[header] = row[index] !== undefined ? row[index] : '';
-            });
-            return obj;
-          });
-        
-        resolve({
-          data: excelRows,
-          headers: headers.filter(h => h !== ''),
-          errors: [],
-        });
-      } catch (error) {
-        resolve({
-          data: [],
-          headers: [],
-          errors: [error instanceof Error ? error.message : 'Failed to parse Excel file'],
-        });
-      }
-    };
-    
-    reader.onerror = () => {
-      resolve({
-        data: [],
-        headers: [],
-        errors: ['Failed to read Excel file'],
-      });
-    };
-    
-    reader.readAsArrayBuffer(file);
-  });
-};
-
 export const parseFile = async (file: File): Promise<ParsedData> => {
   const extension = file.name.split('.').pop()?.toLowerCase();
   
@@ -158,12 +90,18 @@ export const parseFile = async (file: File): Promise<ParsedData> => {
       return parseJSON(file);
     case 'xlsx':
     case 'xls':
-      return parseExcel(file);
+      // For now, we'll show an error for Excel files
+      // In a real implementation, you'd use a library like xlsx
+      return {
+        data: [],
+        headers: [],
+        errors: ['Excel files are not yet supported. Please convert to CSV format.'],
+      };
     default:
       return {
         data: [],
         headers: [],
-        errors: ['Unsupported file format. Please use CSV, JSON, or Excel files.'],
+        errors: ['Unsupported file format'],
       };
   }
 };
