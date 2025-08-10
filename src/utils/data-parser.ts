@@ -41,22 +41,22 @@ export const parseJSON = (file: File): Promise<ParsedData> => {
         const jsonData = JSON.parse(text);
         
         // Handle different JSON structures
-        let data: any[];
+        let parsedRows: any[];
         if (Array.isArray(jsonData)) {
-          data = jsonData;
+          parsedRows = jsonData;
         } else if (jsonData.data && Array.isArray(jsonData.data)) {
-          data = jsonData.data;
+          parsedRows = jsonData.data;
         } else if (typeof jsonData === 'object') {
           // Convert single object to array
-          data = [jsonData];
+          parsedRows = [jsonData];
         } else {
           throw new Error('Invalid JSON structure');
         }
         
-        const headers = data.length > 0 ? Object.keys(data[0]) : [];
+        const headers = parsedRows.length > 0 ? Object.keys(parsedRows[0]) : [];
         
         resolve({
-          data,
+          data: parsedRows,
           headers,
           errors: [],
         });
@@ -111,8 +111,8 @@ export const parseExcel = (file: File): Promise<ParsedData> => {
           header ? String(header).trim() : ''
         );
         
-        // Convert data rows to objects
-        const parsedData = jsonData.slice(1)
+        // Convert rows to objects
+        const excelRows = jsonData.slice(1)
           .filter(row => Array.isArray(row) && row.some(cell => cell !== null && cell !== undefined && cell !== ''))
           .map((row: any[]) => {
             const obj: any = {};
@@ -123,7 +123,7 @@ export const parseExcel = (file: File): Promise<ParsedData> => {
           });
         
         resolve({
-          data: parsedData,
+          data: excelRows,
           headers: headers.filter(h => h !== ''),
           errors: [],
         });
